@@ -1,0 +1,159 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Code Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        select, button {
+            padding: 8px;
+            margin: 5px 0;
+            width: 150px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Color Code Calculator</h2>
+        <select id="type">
+            <option value="resistor">Resistor</option>
+            <option value="capacitor">Capacitor</option>
+            <option value="insulator">Insulator</option>
+        </select>
+
+        <div id="resistorInputs" style="display:none;">
+            <select id="band1"><option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option></select>
+            <select id="band2"><option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option></select>
+            <select id="multiplier"><option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option></select>
+            <select id="tolerance"><option value="gold">Gold (5%)</option><option value="silver">Silver (10%)</option><option value="none">None (20%)</option></select>
+        </div>
+
+        <div id="capacitorInputs" style="display:none;">
+            <select id="cband1"><option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option></select>
+            <select id="cband2"><option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option></select>
+            <select id="cmultiplier"><option value="black">Black</option><option value="brown">Brown</option><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="violet">Violet</option><option value="grey">Grey</option><option value="white">White</option></select>
+            <select id="ctolerance"><option value="gold">Gold (5%)</option><option value="silver">Silver (10%)</option><option value="none">None (20%)</option></select>
+        </div>
+
+        <div id="insulatorInfo" style="display:none;">
+            <p>Insulators use color codes for temperature or voltage rating (e.g., black=low temp, red=high voltage). Consult manufacturer data for details.</p>
+        </div>
+
+        <button onclick="calculate()">Calculate</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('type').addEventListener('change', function() {
+            document.getElementById('resistorInputs').style.display = 'none';
+            document.getElementById('capacitorInputs').style.display = 'none';
+            document.getElementById('insulatorInfo').style.display = 'none';
+            if (this.value === 'resistor') document.getElementById('resistorInputs').style.display = 'block';
+            else if (this.value === 'capacitor') document.getElementById('capacitorInputs').style.display = 'block';
+            else if (this.value === 'insulator') document.getElementById('insulatorInfo').style.display = 'block';
+        });
+
+        function calculate() {
+            const type = document.getElementById('type').value;
+            let result = '';
+            const colorValues = {
+                'black': 0, 'brown': 1, 'red': 2, 'orange': 3, 'yellow': 4,
+                'green': 5, 'blue': 6, 'violet': 7, 'grey': 8, 'white': 9
+            };
+            const toleranceValues = { 'gold': 0.05, 'silver': 0.10, 'none': 0.20 };
+
+            if (type === 'resistor') {
+                const band1 = document.getElementById('band1').value;
+                const band2 = document.getElementById('band2').value;
+                const multiplier = document.getElementById('multiplier').value;
+                const tolerance = document.getElementById('tolerance').value;
+                const value = (colorValues[band1] * 10 + colorValues[band2]) * Math.pow(10, colorValues[multiplier]);
+                const tolPercent = toleranceValues[tolerance];
+                const minValue = value * (1 - tolPercent);
+                const maxValue = value * (1 + tolPercent);
+                result = `Resistance: ${value} ohms<br>Tolerance: ±${tolPercent * 100}%<br>Range: ${minValue} to ${maxValue} ohms`;
+            }
+            else if (type === 'capacitor') {
+                const band1 = document.getElementById('cband1').value;
+                const band2 = document.getElementById('cband2').value;
+                const multiplier = document.getElementById('cmultiplier').value;
+                const tolerance = document.getElementById('ctolerance').value;
+                const value = (colorValues[band1] * 10 + colorValues[band2]) * Math.pow(10, colorValues[multiplier]);
+                const tolPercent = toleranceValues[tolerance];
+                const minValue = value * (1 - tolPercent);
+                const maxValue = value * (1 + tolPercent);
+                result = `Capacitance: ${value} pF<br>Tolerance: ±${tolPercent * 100}%<br>Range: ${minValue} to ${maxValue} pF`;
+            }
+            else if (type === 'insulator') {
+                result = 'No numerical calculation available for insulators.';
+            }
+            document.getElementById('result').innerHTML = result;
+        }
+    </script>
+</body>
+</html>
